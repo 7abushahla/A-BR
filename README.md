@@ -245,15 +245,10 @@ See `docs/BR_IMPLEMENTATION_REVIEW.md` for:
 
 ## Citation
 
-If you use this code, please cite the original BR paper:
+If you use this code, please cite the following paper:
 
 ```bibtex
-@inproceedings{han2021improving,
-  title={Improving Low-Precision Network Quantization via Bin Regularization},
-  author={Han, Tiantian and Li, Dong and Liu, Ji and Tian, Lu and Shan, Yi},
-  booktitle={Proceedings of the IEEE/CVF International Conference on Computer Vision},
-  pages={5241--5250},
-  year={2021}
+
 }
 ```
 
