@@ -1,0 +1,73 @@
+{
+  "config": {
+    "baseline_checkpoints_dir": "A-BR/results/mnist_relu1_sweep/checkpoints",
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "bit_widths": [
+      1,
+      2,
+      4
+    ],
+    "lambdas": [
+      0.1,
+      1.0,
+      10.0
+    ]
+  },
+  "qat_results": {
+    "1": {
+      "0.1": {
+        "fp32_accuracy": [],
+        "int_accuracy": [],
+        "mse": []
+      },
+      "1.0": {
+        "fp32_accuracy": [],
+        "int_accuracy": [],
+        "mse": []
+      },
+      "10.0": {
+        "fp32_accuracy": [],
+        "int_accuracy": [],
+        "mse": []
+      }
+    },
+    "2": {
+      "0.1": {
+        "fp32_accuracy": [],
+        "int_accuracy": [],
+        "mse": []
+      },
+      "1.0": {
+        "fp32_accuracy": [],
+        "int_accuracy": [],
+        "mse": []
+      },
+      "10.0": {
+        "fp32_accuracy": [],
+        "int_accuracy": [],
+        "mse": []
+      }
+    },
+    "4": {
+      "0.1": {
+        "fp32_accuracy": [],
+        "int_accuracy": [],
+        "mse": []
+      },
+      "1.0": {
+        "fp32_accuracy": [],
+        "int_accuracy": [],
+        "mse": []
+      },
+      "10.0": {
+        "fp32_accuracy": [],
+        "int_accuracy": [],
+        "mse": []
+      }
+    }
+  }
+}

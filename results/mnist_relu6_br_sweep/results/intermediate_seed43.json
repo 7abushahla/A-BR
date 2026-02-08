@@ -1,0 +1,136 @@
+{
+  "qat_results": {
+    "1": {
+      "0.1": {
+        "fp32_accuracy": [
+          99.61,
+          NaN
+        ],
+        "int_accuracy": [
+          98.51,
+          NaN
+        ],
+        "mse": [
+          0.008487297222018242,
+          NaN
+        ]
+      },
+      "1.0": {
+        "fp32_accuracy": [
+          99.61,
+          NaN
+        ],
+        "int_accuracy": [
+          98.51,
+          NaN
+        ],
+        "mse": [
+          0.008487297222018242,
+          NaN
+        ]
+      },
+      "10.0": {
+        "fp32_accuracy": [
+          99.61,
+          NaN
+        ],
+        "int_accuracy": [
+          98.51,
+          NaN
+        ],
+        "mse": [
+          0.008487297222018242,
+          NaN
+        ]
+      }
+    },
+    "2": {
+      "0.1": {
+        "fp32_accuracy": [
+          99.61,
+          NaN
+        ],
+        "int_accuracy": [
+          99.59,
+          NaN
+        ],
+        "mse": [
+          8.98167781997472e-05,
+          NaN
+        ]
+      },
+      "1.0": {
+        "fp32_accuracy": [
+          99.61,
+          NaN
+        ],
+        "int_accuracy": [
+          99.56,
+          NaN
+        ],
+        "mse": [
+          5.884636630071327e-05,
+          NaN
+        ]
+      },
+      "10.0": {
+        "fp32_accuracy": [
+          99.61,
+          NaN
+        ],
+        "int_accuracy": [
+          99.5,
+          NaN
+        ],
+        "mse": [
+          3.657648994703777e-05,
+          NaN
+        ]
+      }
+    },
+    "4": {
+      "0.1": {
+        "fp32_accuracy": [
+          99.61,
+          NaN
+        ],
+        "int_accuracy": [
+          99.54,
+          NaN
+        ],
+        "mse": [
+          3.4503067581681535e-05,
+          NaN
+        ]
+      },
+      "1.0": {
+        "fp32_accuracy": [
+          NaN,
+          NaN
+        ],
+        "int_accuracy": [
+          NaN,
+          NaN
+        ],
+        "mse": [
+          NaN,
+          NaN
+        ]
+      },
+      "10.0": {
+        "fp32_accuracy": [
+          NaN,
+          NaN
+        ],
+        "int_accuracy": [
+          NaN,
+          NaN
+        ],
+        "mse": [
+          NaN,
+          NaN
+        ]
+      }
+    }
+  }
+}

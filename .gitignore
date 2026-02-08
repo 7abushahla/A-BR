@@ -1,0 +1,7 @@
+runs/.DS_Store
+checkpoints/.DS_Store
+experiments/.DS_Store
+results/.DS_Store
+results/mnist_relu1_br_sweep/.DS_Store
+results/mnist_relu1_br_sweep_aws/.DS_Store
+results/mnist_relu6_br_sweep/.DS_Store

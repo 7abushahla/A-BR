@@ -21,7 +21,9 @@ echo "Mode: $MODE"
 echo "========================================"
 
 # Common arguments
-COMMON_ARGS="--num-bits 2 --warmup-epochs 30 --epochs 100 --lambda-br 0.1 --seed 42 --batch-size 256 --lr 0.001"
+# Note: λ=1.0 is paper-faithful (BR loss summed across layers, not averaged)
+# Typical range: λ ∈ [0.5, 10] for good accuracy-clustering tradeoff
+COMMON_ARGS="--num-bits 2 --warmup-epochs 30 --epochs 100 --lambda-br 1.0 --seed 42 --batch-size 256 --lr 0.001"
 
 if [ "$MODE" = "coupled" ]; then
     echo "Running COUPLED mode (paper-faithful, BR backprops to alpha)"

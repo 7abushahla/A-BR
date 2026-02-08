@@ -145,7 +145,10 @@ class QuantizedClippedReLU(nn.Module):
     
     def forward(self, x):
         # Step 1: ReLU + clip to [0, clip_value] - CONTINUOUS VALUES
+        if self.clip_value is not None:
         x_continuous = torch.clamp(F.relu(x), max=self.clip_value)
+        else:
+            x_continuous = F.relu(x)
         
         # Store pre-quantization activations (for BR loss)
         self.pre_quant_activation = x_continuous

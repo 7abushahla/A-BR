@@ -1,0 +1,23 @@
+================================================================================
+QUANTIZATION EVALUATION SUMMARY
+================================================================================
+
+Quantization: 2-bit
+
+Accuracy:
+  Baseline FP32:     99.02% (before quantization)
+  Baseline PTQ:      98.81% (PTQ quantized)
+  QAT-BR:            97.33% (QAT quantized)
+
+  PTQ Accuracy Drop: 0.21%
+  QAT-BR vs PTQ:     -1.48%
+
+Quantization MSE:
+  Baseline PTQ: 0.002527
+  QAT-BR:       0.000337
+  Improvement:  86.7% reduction
+
+Clustering Effectiveness:
+  Baseline PTQ: 84.8%
+  QAT-BR:       90.4%
+  Improvement:  +5.6%

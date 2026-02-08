@@ -1,0 +1,37 @@
+================================================================================
+QAT+BR SWEEP SUMMARY - MNIST
+================================================================================
+
+Configuration:
+  Baseline checkpoints: A-BR/results/mnist_relu1_sweep/checkpoints
+  Seeds: [42, 43, 44]
+  Bit widths: [1, 2, 4]
+  Lambdas: [0.1, 1.0, 10.0]
+
+================================================================================
+BIT WIDTH: 1 (INT1)
+================================================================================
+
+ Lambda FP32 Acc INT1 Acc Avg. MSE
+    0.1  nan±nan  nan±nan  nan±nan
+    1.0  nan±nan  nan±nan  nan±nan
+   10.0  nan±nan  nan±nan  nan±nan
+
+================================================================================
+BIT WIDTH: 2 (INT2)
+================================================================================
+
+ Lambda FP32 Acc INT2 Acc Avg. MSE
+    0.1  nan±nan  nan±nan  nan±nan
+    1.0  nan±nan  nan±nan  nan±nan
+   10.0  nan±nan  nan±nan  nan±nan
+
+================================================================================
+BIT WIDTH: 4 (INT4)
+================================================================================
+
+ Lambda FP32 Acc INT4 Acc Avg. MSE
+    0.1  nan±nan  nan±nan  nan±nan
+    1.0  nan±nan  nan±nan  nan±nan
+   10.0  nan±nan  nan±nan  nan±nan
+

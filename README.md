@@ -26,10 +26,10 @@ A-BR/
 │   └── hooks.py                 # Activation capture hooks
 ├── experiments/                  # Training scripts
 │   ├── mnist_baseline.py        # MNIST baseline (FP32)
-│   ├── mnist_qat_lsq_only.py    # MNIST with LSQ only (no BR)
 │   ├── mnist_qat_binreg.py      # MNIST with LSQ + BR
-│   ├── cifar10_mobilenet_baseline.py     # CIFAR-10 baseline
-│   └── cifar10_mobilenet_qat_binreg.py   # CIFAR-10 with LSQ + BR
+│   ├── evaluate_quantization.py # Compare PTQ vs QAT-BR
+│   ├── cifar10_baseline.py      # CIFAR-10 baseline (FP32)
+│   └── cifar10_qat_binreg.py    # CIFAR-10 with LSQ + BR
 ├── scripts/                      # Helper scripts
 │   ├── run_baseline_mnist.sh    # Train MNIST baseline
 │   ├── run_lsq_only_mnist.sh    # Train with LSQ only
@@ -72,6 +72,31 @@ python experiments/mnist_qat_binreg.py \
   --epochs 100 \            # Total epochs
   --lambda-br 0.1           # BR loss weight
 ```
+
+### Run CIFAR-10 Experiment
+
+```bash
+# Quick start (single QAT-BR run)
+./run_cifar10_example.sh
+
+# Or manually:
+python experiments/cifar10_qat_binreg.py \
+  --num-bits 2 \
+  --warmup-epochs 30 \
+  --epochs 100 \
+  --lambda-br 10.0 \
+  --clip-value 1.0 \
+  --freeze-alpha \
+  --br-all-layers
+
+# Complete experiment (Baseline + QAT-BR + Comparison)
+./run_cifar10_complete_experiment.sh
+```
+
+**Note:** CIFAR-10 is more challenging than MNIST and may require:
+- Longer training (100+ epochs)
+- Higher lambda (10.0 instead of 0.1 due to paper-faithful loss scaling)
+- More careful tuning
 
 ### Two Optimization Modes
 

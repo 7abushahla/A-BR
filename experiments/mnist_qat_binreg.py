@@ -95,7 +95,7 @@ class PlainConvFlattenQAT(nn.Module):
 
 # ======================== Logging Functions ========================
 
-def log_activation_histograms(writer, hook_manager, epoch):
+def log_activation_histograms(writer, hook_manager, epoch, model=None):
     """
     Log activation histograms to TensorBoard.
     
@@ -103,12 +103,20 @@ def log_activation_histograms(writer, hook_manager, epoch):
     1. Pre-quantization activations (continuous, what BR shapes)
     2. Post-quantization activations (discrete, what flows to next layer)
     3. Quantization residuals (|pre - post|, shows BR effectiveness)
+    4. ZOOMED versions focusing on quantization range for better comparison
     """
     # Get post-quantization activations (discrete)
     post_quant_activations = hook_manager.get_activations()
     
     # Get pre-quantization activations (continuous)
     pre_quant_activations = hook_manager.get_pre_quant_activations()
+    
+    # Get quantization modules to find max quantization level
+    quant_modules = {}
+    if model is not None:
+        for name, module in model.named_modules():
+            if isinstance(module, QuantizedClippedReLU):
+                quant_modules[name] = module
     
     for name in post_quant_activations.keys():
         # Log post-quantization (discrete)
@@ -119,6 +127,19 @@ def log_activation_histograms(writer, hook_manager, epoch):
         if name in pre_quant_activations:
             pre_acts_flat = pre_quant_activations[name].flatten()
             writer.add_histogram(f'activations_pre_quant/{name}', pre_acts_flat, epoch)
+            
+            # ZOOMED histograms: clip to quantization range [0, Qp*alpha]
+            # This makes pre-quant and post-quant directly comparable!
+            if name in quant_modules:
+                levels = quant_modules[name].quantizer.get_quantization_levels()
+                max_level = levels[-1].item()
+                
+                # Clip pre-quant to quantization range for fair comparison
+                pre_acts_zoomed = torch.clamp(pre_acts_flat, 0, max_level)
+                writer.add_histogram(f'activations_pre_quant_ZOOMED/{name}', pre_acts_zoomed, epoch)
+                
+                # Post-quant should already be in this range, but log for comparison
+                writer.add_histogram(f'activations_post_quant_ZOOMED/{name}', post_acts_flat, epoch)
             
             # Log quantization residual: |pre - post|
             # This is THE KEY metric for BR effectiveness!
@@ -143,6 +164,93 @@ def log_quantization_scales(writer, model, epoch):
             levels = module.quantizer.get_quantization_levels()
             for i, level in enumerate(levels):
                 writer.add_scalar(f'quant_levels/{name}/level_{i}', level.item(), epoch)
+
+
+def log_activation_clustering_plot(writer, model, hook_manager, epoch):
+    """
+    Create custom matplotlib plots showing pre-quant activations clustering around quantization levels.
+    
+    This creates a visual proof that BR is working: pre-quant activations should form
+    peaks/clusters at the discrete quantization levels (shown as red dashed lines).
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+    
+    pre_quant_activations = hook_manager.get_pre_quant_activations()
+    post_quant_activations = hook_manager.get_activations()
+    
+    # Get quantization modules
+    quant_modules = {}
+    for name, module in model.named_modules():
+        if isinstance(module, QuantizedClippedReLU):
+            quant_modules[name] = module
+    
+    for layer_name in pre_quant_activations.keys():
+        if layer_name not in quant_modules:
+            continue
+            
+        # Get data
+        pre_acts = pre_quant_activations[layer_name].detach().cpu().flatten().numpy()
+        post_acts = post_quant_activations[layer_name].detach().cpu().flatten().numpy()
+        
+        # Get quantization levels
+        levels = quant_modules[layer_name].quantizer.get_quantization_levels().detach().cpu().numpy()
+        alpha = quant_modules[layer_name].quantizer.alpha.item()
+        Qp = quant_modules[layer_name].quantizer.Qp
+        max_level = levels[-1]  # Qp * alpha
+        
+        # Create figure with 3 subplots
+        fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 12))
+        
+        # Plot 1: Pre-quant activations FULL RANGE [0, clip_value]
+        ax1.hist(pre_acts, bins=100, alpha=0.7, color='blue', edgecolor='black', density=True)
+        ax1.set_title(f'{layer_name}: Pre-Quantization Activations - FULL RANGE [0, clip_value]\nValues > {max_level:.3f} will be clipped to level {Qp}', fontsize=11, fontweight='bold')
+        ax1.set_xlabel('Activation Value')
+        ax1.set_ylabel('Density')
+        ax1.grid(True, alpha=0.3)
+        ax1.set_xlim([0, 1.0])  # Full clip_value range
+        
+        # Draw vertical lines at quantization levels
+        for i, level in enumerate(levels):
+            ax1.axvline(level, color='red', linestyle='--', linewidth=2, alpha=0.8, 
+                       label=f'Level {i} = {level:.3f}')
+        ax1.axvspan(max_level, 1.0, alpha=0.2, color='gray', label=f'Clipped to level {Qp}')
+        ax1.legend(loc='upper right', fontsize=9)
+        
+        # Plot 2: Pre-quant activations ZOOMED to quantization range [0, Qp*alpha]
+        ax2.hist(pre_acts, bins=100, alpha=0.7, color='blue', edgecolor='black', density=True, range=(0, max_level * 1.1))
+        ax2.set_title(f'{layer_name}: Pre-Quantization - ZOOMED to Quantization Range [0, {max_level:.3f}]\nBR should create peaks at red lines!', fontsize=11, fontweight='bold')
+        ax2.set_xlabel('Activation Value')
+        ax2.set_ylabel('Density')
+        ax2.grid(True, alpha=0.3)
+        ax2.set_xlim([0, max_level * 1.1])  # Zoom to quantization range
+        
+        # Draw vertical lines at quantization levels on zoomed plot
+        for i, level in enumerate(levels):
+            ax2.axvline(level, color='red', linestyle='--', linewidth=3, alpha=0.9)
+        
+        # Add text annotation
+        ax2.text(0.02, 0.95, f'Alpha (step size) = {alpha:.4f}\nNum levels = {len(levels)}\nQp = {Qp}',
+                transform=ax2.transAxes, verticalalignment='top',
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5), fontsize=10)
+        
+        # Plot 3: Post-quant activations (should be discrete spikes)
+        ax3.hist(post_acts, bins=100, alpha=0.7, color='green', edgecolor='black', density=True)
+        ax3.set_title(f'{layer_name}: Post-Quantization Activations (Discrete)\nShould be sharp spikes ONLY at red lines', fontsize=11, fontweight='bold')
+        ax3.set_xlabel('Activation Value')
+        ax3.set_ylabel('Density')
+        ax3.grid(True, alpha=0.3)
+        ax3.set_xlim([0, max_level * 1.1])  # Same zoom as pre-quant
+        
+        # Draw vertical lines at quantization levels
+        for level in levels:
+            ax3.axvline(level, color='red', linestyle='--', linewidth=3, alpha=0.9)
+        
+        plt.tight_layout()
+        
+        # Log to TensorBoard
+        writer.add_figure(f'clustering_plot/{layer_name}', fig, epoch)
+        plt.close(fig)
 
 
 def log_binreg_scalars(writer, regularizer, info_dict, epoch):
@@ -370,6 +478,10 @@ def main():
     parser.add_argument('--num-bits', type=int, default=2, help='Target bit-width for quantization (default: 2)')
     parser.add_argument('--clip-value', type=float, default=1.0, help='ReLU clip value (default: 1.0)')
     parser.add_argument('--lambda-br', type=float, default=0.1, help='Lambda for bin regularization loss (default: 0.1)')
+    parser.add_argument('--pretrained-baseline', type=str, default=None,
+                        help='Optional path to a baseline FP32 checkpoint (from experiments/mnist_baseline.py). '
+                             'If provided, loads matching weights into the QAT model (strict=False) to warm-start QAT-BR. '
+                             'This is the fairest way to compare QAT-BR vs Baseline+PTQ.')
     parser.add_argument('--gpu', type=int, default=0, help='GPU ID (-1 for CPU)')
     parser.add_argument('--seed', type=int, default=42, help='Random seed for reproducibility')
     args = parser.parse_args()
@@ -461,6 +573,23 @@ def main():
         clip_value=args.clip_value,
         num_bits=args.num_bits
     ).to(device)
+
+    # Optional: warm-start from baseline FP32 weights
+    if args.pretrained_baseline is not None:
+        print("\n" + "="*70)
+        print("WARM-START: LOADING BASELINE FP32 WEIGHTS")
+        print("="*70)
+        print(f"Loading from: {args.pretrained_baseline}")
+        base_ckpt = torch.load(args.pretrained_baseline, map_location=device)
+        base_sd = base_ckpt['model_state_dict'] if isinstance(base_ckpt, dict) and 'model_state_dict' in base_ckpt else base_ckpt
+        missing, unexpected = model.load_state_dict(base_sd, strict=False)
+        print(f"✓ Loaded baseline weights into QAT model (strict=False)")
+        if missing:
+            # Expected: QAT quantizer params like *.quantizer.alpha, *.quantizer.init_state
+            print(f"  Missing keys (expected for QAT-only params): {len(missing)}")
+        if unexpected:
+            print(f"  Unexpected keys (baseline-only): {len(unexpected)}")
+        print("="*70)
     
     # MANUAL UNIFORM LEVEL INITIALIZATION (if requested)
     # This overrides LSQ's data-driven initialization with uniform spacing
@@ -547,14 +676,16 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-4)
     criterion = nn.CrossEntropyLoss()
     
-    # Learning rate scheduler: Cosine annealing (as in BR paper)
-    # Apply after warmup phase for fine-tuning
-    finetune_epochs = args.epochs - args.warmup_epochs
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+    # Learning rate scheduler: ReduceLROnPlateau
+    # Reduces LR when validation accuracy plateaus (more adaptive than cosine annealing)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, 
-        T_max=finetune_epochs,
-        eta_min=args.lr * 0.01  # Decay to 1% of initial LR
+        mode='max',           # Maximize test accuracy
+        factor=0.5,           # Reduce LR by half
+        patience=10,          # Wait 10 epochs before reducing
+        min_lr=1e-6           # Don't go below this
     )
+    print(f"  Learning rate scheduler: ReduceLROnPlateau (patience={10}, factor={0.5})")
     
     print("\n" + "="*70)
     print("Starting Two-Stage Training (BR Paper S2 Strategy)")
@@ -643,7 +774,13 @@ def main():
         
         # Log histograms periodically (use viz_hook_manager to get all layers)
         if epoch == 0 or (epoch + 1) % 5 == 0 or epoch == args.epochs - 1:
-            log_activation_histograms(writer, viz_hook_manager, epoch)
+            log_activation_histograms(writer, viz_hook_manager, epoch, model=model)
+        
+        # Log custom clustering plots ONLY at key checkpoints (matplotlib is slow)
+        # - After warmup (when BR is about to start)
+        # - At the final epoch (to show final clustering)
+        if epoch == args.warmup_epochs or epoch == args.epochs - 1:
+            log_activation_clustering_plot(writer, model, viz_hook_manager, epoch)
         
         # Flush TensorBoard writer to disk
         writer.flush()
@@ -660,10 +797,10 @@ def main():
                   f"@Levels={info_dict['avg_pct_near']:.1f}%)")
         print()
         
-        # Step learning rate scheduler after warmup
-        if epoch >= args.warmup_epochs:
-            scheduler.step()
-            writer.add_scalar('lr', current_lr, epoch)
+        # Step learning rate scheduler (ReduceLROnPlateau needs the metric)
+        scheduler.step(test_acc)
+        current_lr = optimizer.param_groups[0]['lr']
+        writer.add_scalar('lr', current_lr, epoch)
     
     # Save final model with hyperparameters and BR metrics
     checkpoint_data = {

@@ -1,0 +1,181 @@
+{
+  "config": {
+    "baseline_checkpoints_dir": "A-BR/results/mnist_relu6_sweep/checkpoints",
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "bit_widths": [
+      1,
+      2,
+      4
+    ],
+    "lambdas": [
+      0.1,
+      1.0,
+      10.0
+    ]
+  },
+  "qat_results": {
+    "1": {
+      "0.1": {
+        "fp32_accuracy": [
+          99.61,
+          NaN,
+          NaN
+        ],
+        "int_accuracy": [
+          98.51,
+          NaN,
+          NaN
+        ],
+        "mse": [
+          0.008487297222018242,
+          NaN,
+          NaN
+        ]
+      },
+      "1.0": {
+        "fp32_accuracy": [
+          99.61,
+          NaN,
+          NaN
+        ],
+        "int_accuracy": [
+          98.51,
+          NaN,
+          NaN
+        ],
+        "mse": [
+          0.008487297222018242,
+          NaN,
+          NaN
+        ]
+      },
+      "10.0": {
+        "fp32_accuracy": [
+          99.61,
+          NaN,
+          NaN
+        ],
+        "int_accuracy": [
+          98.51,
+          NaN,
+          NaN
+        ],
+        "mse": [
+          0.008487297222018242,
+          NaN,
+          NaN
+        ]
+      }
+    },
+    "2": {
+      "0.1": {
+        "fp32_accuracy": [
+          99.61,
+          NaN,
+          NaN
+        ],
+        "int_accuracy": [
+          99.59,
+          NaN,
+          NaN
+        ],
+        "mse": [
+          8.98167781997472e-05,
+          NaN,
+          NaN
+        ]
+      },
+      "1.0": {
+        "fp32_accuracy": [
+          99.61,
+          NaN,
+          NaN
+        ],
+        "int_accuracy": [
+          99.56,
+          NaN,
+          NaN
+        ],
+        "mse": [
+          5.884636630071327e-05,
+          NaN,
+          NaN
+        ]
+      },
+      "10.0": {
+        "fp32_accuracy": [
+          99.61,
+          NaN,
+          NaN
+        ],
+        "int_accuracy": [
+          99.5,
+          NaN,
+          NaN
+        ],
+        "mse": [
+          3.657648994703777e-05,
+          NaN,
+          NaN
+        ]
+      }
+    },
+    "4": {
+      "0.1": {
+        "fp32_accuracy": [
+          99.61,
+          NaN,
+          NaN
+        ],
+        "int_accuracy": [
+          99.54,
+          NaN,
+          NaN
+        ],
+        "mse": [
+          3.4503067581681535e-05,
+          NaN,
+          NaN
+        ]
+      },
+      "1.0": {
+        "fp32_accuracy": [
+          NaN,
+          NaN,
+          NaN
+        ],
+        "int_accuracy": [
+          NaN,
+          NaN,
+          NaN
+        ],
+        "mse": [
+          NaN,
+          NaN,
+          NaN
+        ]
+      },
+      "10.0": {
+        "fp32_accuracy": [
+          NaN,
+          NaN,
+          NaN
+        ],
+        "int_accuracy": [
+          NaN,
+          NaN,
+          NaN
+        ],
+        "mse": [
+          NaN,
+          NaN,
+          NaN
+        ]
+      }
+    }
+  }
+}

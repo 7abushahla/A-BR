@@ -148,7 +148,7 @@ class BinRegularizer(nn.Module):
                 # Use unbiased=False explicitly (paper just says "var")
                 # At 2-bit with small bins, unbiased estimator can be noisy
                 var_loss = bin_values.var(unbiased=False)
-                total_var += var_loss
+            total_var += var_loss
             # else: var_loss = 0 (implicit, V_i = 1)
         
         # Total BR loss for this layer: Σ(L_mse + L_var) across bins
@@ -164,23 +164,23 @@ class BinRegularizer(nn.Module):
             
             # 1. Mean distance to quantized value (actual LSQ error)
             mean_distance = (acts_flat - acts_quantized).abs().mean()
-            
-            # 2. BR Effectiveness Score: 0-100%
-            # Perfect clustering (Dirac deltas) = 100%
-            # Uniform spread = 0%
+        
+        # 2. BR Effectiveness Score: 0-100%
+        # Perfect clustering (Dirac deltas) = 100%
+        # Uniform spread = 0%
             # Tensor-safe: ensure max_dist is tensor with correct device/dtype
             max_dist = (alpha * 0.5) if torch.is_tensor(alpha) else torch.tensor(
                 alpha * 0.5, device=acts_flat.device, dtype=acts_flat.dtype
             )
             effectiveness = 100.0 * (1.0 - mean_distance / (max_dist + 1e-12))
             effectiveness = effectiveness.clamp(0.0, 100.0)
-            
-            # 3. Percentage of activations "at" quantization levels (within 1% of alpha)
+        
+        # 3. Percentage of activations "at" quantization levels (within 1% of alpha)
             threshold = (0.01 * alpha) if torch.is_tensor(alpha) else torch.tensor(
                 0.01 * alpha, device=acts_flat.device, dtype=acts_flat.dtype
             )
             near_levels = ((acts_flat - acts_quantized).abs() < threshold).float().mean() * 100.0
-            
+        
             # 4. Actual Quantization MSE (using LSQ assignment, not nearest-level)
             quantization_mse = ((acts_flat - acts_quantized) ** 2).mean()
         
@@ -246,29 +246,32 @@ class BinRegularizer(nn.Module):
             }
         
         num_layers = len(activations_dict)
-        # NOTE: We average across layers rather than summing (as paper does over bins)
-        # This means our λ is effectively scaled by 1/num_layers compared to paper
-        # Rationale: Makes λ scale-invariant to number of layers
-        avg_loss = total_loss / num_layers if num_layers > 0 else total_loss
-        avg_mse = total_mse / num_layers if num_layers > 0 else total_mse
-        avg_var = total_var / num_layers if num_layers > 0 else total_var
-        avg_quant_mse = total_quant_mse / num_layers if num_layers > 0 else 0.0  # NEW: Average actual MSE
+        # PAPER-FAITHFUL: Sum across layers (no averaging)
+        # Paper Eq. (5): L_BR = Σ(L_mse + L_var) over bins
+        # Paper Eq. (7): L = L_CE + λ·L_BR
+        # → L_BR is a SUM over all bins (across all layers), not an average
+        # This means λ values should be O(0.1-10), not O(100-1000)
+        total_loss_final = total_loss  # Sum, not average
+        total_mse_final = total_mse
+        total_var_final = total_var
+        # Metrics: still average for interpretability
+        avg_quant_mse = total_quant_mse / num_layers if num_layers > 0 else 0.0
         avg_mean_distance = total_mean_distance / num_layers if num_layers > 0 else 0.0
         avg_effectiveness = total_effectiveness / num_layers if num_layers > 0 else 0.0
         avg_pct_near = total_pct_near / num_layers if num_layers > 0 else 0.0
         
         info_dict = {
-            'avg_loss': avg_loss.item() if isinstance(avg_loss, torch.Tensor) else avg_loss,
-            'avg_mse': avg_mse.item() if isinstance(avg_mse, torch.Tensor) else avg_mse,
-            'avg_var': avg_var.item() if isinstance(avg_var, torch.Tensor) else avg_var,
-            'avg_quantization_mse': avg_quant_mse,  # NEW: Actual quantization MSE!
+            'avg_loss': total_loss_final.item() if isinstance(total_loss_final, torch.Tensor) else total_loss_final,
+            'avg_mse': total_mse_final.item() if isinstance(total_mse_final, torch.Tensor) else total_mse_final,
+            'avg_var': total_var_final.item() if isinstance(total_var_final, torch.Tensor) else total_var_final,
+            'avg_quantization_mse': avg_quant_mse,  # Metrics: averaged for interpretability
             'avg_mean_distance': avg_mean_distance,
             'avg_effectiveness': avg_effectiveness,
             'avg_pct_near': avg_pct_near,
             'layer_losses': layer_losses
         }
         
-        return avg_loss, info_dict
+        return total_loss_final, info_dict
     
     def get_bin_statistics(self, activations_dict: dict, alphas_dict: dict) -> dict:
         """

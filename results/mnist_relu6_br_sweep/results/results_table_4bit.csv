@@ -1,0 +1,4 @@
+Lambda,FP32 Acc,INT4 Acc,Avg. MSE
+0.1,99.61±0.00,99.54±0.00,0.00003±0.00000
+1.0,nan±nan,nan±nan,nan±nan
+10.0,nan±nan,nan±nan,nan±nan
