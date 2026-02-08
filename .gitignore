@@ -5,3 +5,4 @@ results/.DS_Store
 results/mnist_relu1_br_sweep/.DS_Store
 results/mnist_relu1_br_sweep_aws/.DS_Store
 results/mnist_relu6_br_sweep/.DS_Store
+.DS_Store
