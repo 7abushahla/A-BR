@@ -38,7 +38,7 @@ Checkpoint format
   'warmup_epochs':          int,
   'freeze_alpha':           bool,
   'br_backprop_alpha':      bool,
-  'br_effectiveness':       float,   # same formula as BinRegularizer (train set, last epoch)
+  'br_effectiveness':       float,   # same formula as BinRegularizer; averaged over test batches at best epoch
   'br_quant_mse':           float,
   'fp32_baseline_ckpt':     str,
 }

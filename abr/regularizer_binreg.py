@@ -148,8 +148,9 @@ class BinRegularizer(nn.Module):
                 # Use unbiased=False explicitly (paper just says "var")
                 # At 2-bit with small bins, unbiased estimator can be noisy
                 var_loss = bin_values.var(unbiased=False)
+            else:
+                var_loss = 0.0   # single-element bin: no variance to penalise
             total_var += var_loss
-            # else: var_loss = 0 (implicit, V_i = 1)
         
         # Total BR loss for this layer: Σ(L_mse + L_var) across bins
         # Paper: L_BR = Σ(L_mse(⟨v_i⟩, v̂_i) + L_var(v_i))
