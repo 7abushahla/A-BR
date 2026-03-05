@@ -302,6 +302,17 @@ def main():
                               pin_memory=(device == 'cuda'))
     print(f'CIFAR-10 | train {len(train_ds):,}  test {len(test_ds):,}\n')
 
+    # ── FP32 baseline accuracy (read from checkpoint, no forward pass needed) ──
+    print(f'FP32 baseline checkpoint: {args.fp32_ckpt}')
+    _sd = torch.load(args.fp32_ckpt, map_location='cpu', weights_only=False)
+    _saved_acc = _sd.get('test_acc', _sd.get('test_accuracy', _sd.get('best_accuracy', None)))
+    if _saved_acc is not None:
+        print(f'  ✓ saved_acc = {_saved_acc:.4f}  ({_saved_acc*100:.2f}%)')
+    else:
+        print('  ✓ loaded  (no saved accuracy found in checkpoint)')
+    del _sd
+    print()
+
     # ── Model ─────────────────────────────────────────────────────────────────
     qat_model = build_resnet18_cifar10_qat(
         num_bits=args.num_bits,
