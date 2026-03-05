@@ -115,48 +115,92 @@ class LSQ_ActivationQuantizer(nn.Module):
 
 class QuantizedClippedReLU(nn.Module):
     """
-    Clipped ReLU with LSQ quantization.
-    
+    Clipped ReLU with LSQ quantization + optional Rate-Code Noise Injection (RCNI).
+
     Combines:
     1. ReLU activation
     2. Clipping to [0, clip_value]
     3. LSQ quantization with learnable scale
-    
+    4. (Optional) Rate-Code Noise Injection for T-step SNN robustness
+
     This is used for QAT with Bin Regularization.
-    
+
     IMPORTANT: For BR to work correctly, it needs access to PRE-quantization
     activations (continuous values after ReLU/clip, before round_pass).
     We store these in self.pre_quant_activation for BR loss computation.
+
+    Rate-Code Noise Injection (RCNI)
+    ---------------------------------
+    When `t_align` is set (e.g. t_align=3 for 2-bit), the quantised output has
+    Uniform(−α/(2·T), +α/(2·T)) noise added during training.  This noise is
+    analytically derived from the worst-case T-step rate-coding quantisation
+    error: an activation within ±α/(2T) of a bin boundary can be assigned the
+    wrong spike count, producing a ±α error in the reconstructed activation.
+
+    By training every downstream layer with this noise present, the model learns
+    to be robust to the inter-layer cascade errors that degrade SNN accuracy at
+    small T — eliminating the need for a separate SNN fine-tuning phase.
+
+    RCNI does NOT change BR loss computation (BR still sees the clean
+    pre_quant_activation) and does NOT affect evaluation (noise is training-only).
     """
-    
-    def __init__(self, clip_value=1.0, num_bits=2):
+
+    def __init__(self, clip_value=1.0, num_bits=2, t_align=None):
+        """
+        Args:
+            clip_value: Upper bound for the ReLU clip (default 1.0).
+            num_bits:   Activation bit width (default 2).
+            t_align:    Simulation timesteps for RCNI noise (None = disabled).
+                        Set to 2**num_bits - 1 for T-aligned conversion.
+        """
         super().__init__()
         self.clip_value = clip_value
-        self.num_bits = num_bits
-        
+        self.num_bits   = num_bits
+        self.t_align    = t_align   # None → RCNI disabled; int → RCNI enabled
+
         # LSQ quantizer
         self.quantizer = LSQ_ActivationQuantizer(
             num_bits=num_bits,
             clip_value=clip_value
         )
-        
+
         # Store pre-quantization activations for BR
         self.pre_quant_activation = None
-    
+
     def forward(self, x):
-        # Step 1: ReLU + clip to [0, clip_value] - CONTINUOUS VALUES
+        # ── Step 1: ReLU + clip to [0, clip_value] – continuous values ────────
         if self.clip_value is not None:
             x_continuous = torch.clamp(F.relu(x), max=self.clip_value)
         else:
             x_continuous = F.relu(x)
-        
-        # Store pre-quantization activations (for BR loss)
+
+        # Store pre-quantization activations (for BR loss, unaffected by noise)
         self.pre_quant_activation = x_continuous
-        
-        # Step 2: Quantize with learnable scale - DISCRETE VALUES
+
+        # ── Step 2: LSQ hard quantisation → {0, α, 2α, …, Qp·α} ─────────────
         x_quantized = self.quantizer(x_continuous)
-        
+
+        # ── Step 3: Rate-Code Noise Injection (RCNI) – training only ─────────
+        # Noise magnitude = α / (2·T):  the maximum rate-coding error for a
+        # T-step IFNode is ±α (one bin off), which occurs only for activations
+        # within ±1/(2T) of a bin boundary.  Injecting Uniform(−α/(2T), +α/(2T))
+        # at every layer trains downstream weights to absorb these cascade errors.
+        if self.training and self.t_align is not None and self.t_align > 0:
+            alpha    = self.quantizer.alpha.detach()
+            Qp       = self.quantizer.Qp
+            sigma    = alpha / (2.0 * self.t_align)              # α / (2T)
+            noise    = (torch.rand_like(x_quantized) - 0.5) * 2.0 * sigma
+            # Clamp to valid quantisation range so noise can't push outside [0, Qp·α]
+            x_quantized = torch.clamp(x_quantized + noise,
+                                       torch.zeros_like(alpha),
+                                       alpha * Qp)
+
         return x_quantized
+
+    def extra_repr(self):
+        alpha = self.quantizer.alpha.item() if hasattr(self.quantizer, 'alpha') else 0
+        rcni  = f', RCNI T={self.t_align}' if self.t_align is not None else ''
+        return f'clip_value={self.clip_value}, num_bits={self.num_bits}, alpha={alpha:.4f}{rcni}'
     
     def extra_repr(self):
         alpha = self.quantizer.alpha.item() if hasattr(self.quantizer, 'alpha') else 0

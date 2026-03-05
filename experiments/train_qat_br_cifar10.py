@@ -96,6 +96,11 @@ def parse_args():
     p.add_argument('--lambda_br',         type=float, default=0.1,  help='BR loss weight.')
     p.add_argument('--no_freeze_alpha',   action='store_true',       help='Keep α trainable throughout.')
     p.add_argument('--no_br_backprop_alpha', action='store_true',    help='Detach α from BR gradient.')
+    p.add_argument('--rcni', action='store_true',
+                   help='Enable Rate-Code Noise Injection: injects Uniform(−α/(2T),+α/(2T)) '
+                        'noise into each layer\'s quantised output during training, making '
+                        'downstream weights robust to T-step SNN cascade errors. '
+                        'T is set to 2**num_bits-1 (T_ALIGN). No effect at evaluation.')
     # Schedule
     p.add_argument('--warmup_epochs', type=int,   default=10,  help='Epochs of task-loss-only warmup.')
     p.add_argument('--qat_epochs',    type=int,   default=50,  help='Epochs of QAT+BR training.')
@@ -126,10 +131,14 @@ def _replace_activations(module, src_types, dst_factory):
             _replace_activations(child, src_types, dst_factory)
 
 
-def build_resnet18_cifar10_qat(num_bits, clip_value, fp32_baseline_ckpt):
+def build_resnet18_cifar10_qat(num_bits, clip_value, fp32_baseline_ckpt, t_align=None):
     """
     ResNet18 adapted for CIFAR-10 with QuantizedClippedReLU activations,
     initialised from a FP32 CIFAR-10 checkpoint (non-quantizer params only).
+
+    Args:
+        t_align: If not None, enables RCNI noise injection with T=t_align.
+                 Set to 2**num_bits-1 for T-aligned ANN→SNN conversion.
     """
     model = resnet18(weights=None)
     model.conv1   = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
@@ -139,7 +148,9 @@ def build_resnet18_cifar10_qat(num_bits, clip_value, fp32_baseline_ckpt):
     _replace_activations(
         model,
         src_types=[nn.ReLU, nn.ReLU6],
-        dst_factory=lambda: QuantizedClippedReLU(clip_value=clip_value, num_bits=num_bits),
+        dst_factory=lambda: QuantizedClippedReLU(clip_value=clip_value,
+                                                  num_bits=num_bits,
+                                                  t_align=t_align),
     )
 
     ckpt = torch.load(fp32_baseline_ckpt, map_location='cpu', weights_only=False)
@@ -271,12 +282,14 @@ def main():
     BR_BACKPROP_ALPHA = not args.no_br_backprop_alpha
     TOTAL_EPOCHS      = args.warmup_epochs + args.qat_epochs
     T_ALIGN           = 2 ** args.num_bits - 1
+    RCNI_T            = T_ALIGN if args.rcni else None
 
     print(f'device: {device}')
     print(f'torch {torch.__version__} | torchvision {torchvision.__version__}')
     print(f'T_ALIGN = {T_ALIGN}  (2^{args.num_bits}-1)  |  '
           f'λ_BR = {args.lambda_br}  |  '
-          f'epochs = {TOTAL_EPOCHS} ({args.warmup_epochs}w + {args.qat_epochs}q)')
+          f'epochs = {TOTAL_EPOCHS} ({args.warmup_epochs}w + {args.qat_epochs}q)  |  '
+          f'RCNI = {"ON  (T=" + str(T_ALIGN) + ")" if args.rcni else "OFF"}')
     print()
 
     # ── Data ──────────────────────────────────────────────────────────────────
@@ -318,6 +331,7 @@ def main():
         num_bits=args.num_bits,
         clip_value=args.clip_value,
         fp32_baseline_ckpt=args.fp32_ckpt,
+        t_align=RCNI_T,
     ).to(device)
 
     all_qrelu = [n for n, m in qat_model.named_modules()
@@ -399,6 +413,8 @@ def main():
                 'warmup_epochs':        args.warmup_epochs,
                 'freeze_alpha':         FREEZE_ALPHA,
                 'br_backprop_alpha':    BR_BACKPROP_ALPHA,
+                'rcni':                 args.rcni,
+                'rcni_t':               RCNI_T,
                 'br_effectiveness':     br_info['eff'],
                 'br_quant_mse':         br_info['mse'],
                 'fp32_baseline_ckpt':   args.fp32_ckpt,
