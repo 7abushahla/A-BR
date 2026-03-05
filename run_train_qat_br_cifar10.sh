@@ -10,8 +10,6 @@
 #SBATCH --job-name=qatbr_cifar10
 #SBATCH --output=logs/slurm_qatbr_cifar10_%j.out
 
-# Ensure logs directory exists (SLURM needs it before writing --output/--error)
-mkdir -p "$(dirname "$0")/logs"
 
 # Initialize conda
 source ~/.bashrc
